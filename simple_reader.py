@@ -6,7 +6,7 @@ from base_reader import *
 class Simple_Reader (ReaderBase):
    __slots__ = ['data']
    def __init__(self, filename):
-      ReaderBase.__init__(self, filename)
+      ReaderBase.__init__(self)
       
       file = open(filename, 'r')
       
@@ -15,20 +15,20 @@ class Simple_Reader (ReaderBase):
       while line[0] == '#':
          line = file.readline()
          
-      # Lecture des données
-      self.data['t'] = []
-      self.data['x'] = []
-      self.data['y'] = []
-      self.data['z'] = []
-      self.data['vx'] = []
-      self.data['vy'] = []
-      self.data['vz'] = []
-      self.data['lat'] = []
-      self.data['lon'] = []
-      self.data['alt'] = []
-      self.data['vit'] = []
-      self.data['pen'] = []
-      self.data['azi'] = []
+      # Lecture des donnÃ©es
+      self.data['t'] = Datagram()
+      self.data['x'] = Datagram()
+      self.data['y'] = Datagram()
+      self.data['z'] = Datagram()
+      self.data['vx'] = Datagram()
+      self.data['vy'] = Datagram()
+      self.data['vz'] = Datagram()
+      self.data['lat'] = Datagram()
+      self.data['lon'] = Datagram()
+      self.data['alt'] = Datagram()
+      self.data['vit'] = Datagram()
+      self.data['pen'] = Datagram()
+      self.data['azi'] = Datagram()
       while line <> '':
          dat = line.strip().split(' ')
          while '' in dat:

@@ -3,31 +3,29 @@
 import sys
 
 # Put the path where pyApple is located here
-sys.path.append('~/pyApple')
+#sys.path.append('~/pyApple')
 
 import platform
 
 from simple_reader import *
 
-import tic_frame as tic
+from gui_elem import *
 
 
-d = Simple_Reader('~/pyApple/data.txt')
+d = Simple_Reader('data.txt')
 
-carte = tic.Carte("Trace au sol", True, projection='merc')
-tr_sol = tic.Courbe("Trace au sol", d['lon'], d['lat'], couleur='b')
-carte.ajCourbe(tr_sol)
+carte = Map("Trace au sol", True, projection='merc')
+tr_sol = Line("Trace au sol", d['lon'], d['lat'], color='b')
+carte.addLine(tr_sol)
 
-rep = tic.Repere("Altitude")
-alt = tic.Courbe(u"Altitude", d['t'], d['alt'], couleur='b')
-rep.ajCourbe(alt)
-# print alt.moyenne()
-# print sqrt(alt.variance())
+rep = Axe("Altitude")
+alt = Line(u"Altitude", d['t'], d['alt'], color='b')
+rep.addLine(alt)
 
-fen = tic.Fenetre()
-pl = fen.creerPlanche(u"Satellite")
-pl.ajRepere(rep)
-pl.ajRepere(carte)
+fen = AppleWindow()
+pl = fen.createBoard(u"Satellite")
+pl.addAxe(rep)
+pl.addAxe(carte)
 
-fen.afficher()
+fen.display()
 

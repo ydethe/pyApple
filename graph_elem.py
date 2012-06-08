@@ -15,77 +15,255 @@ import wx
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg
 from matplotlib.backends.backend_wx import NavigationToolbar2Wx
 
+from aplCommon import *
+from base_reader import *
 
-def calc_repart_auto(nb_axes):
-   li = int(round(sqrt(nb_axes)))
-   co = int(ceil(float(nb_axes)/float(li)))
-   # return li, co
-   return co, li
+
+def auto_layout(nb_axes):
+   """
+   Computes the best layout that make nb_axes fit onto the board.
+
+   Parameters
+   ----------
+   nb_axes : integer
+      Number of axes on the board
+   
+   Returns
+   -------
+   (rows, cols) : integer, integer
+      Number of rows, and number of columns
+   
+   Tests
+   -----
+   >>> auto_layout(3)
+   (2, 2)
+   >>> auto_layout(7)
+   (3, 3)
+
+   """
+   ro = int(round(sqrt(nb_axes)))
+   co = int(ceil(float(nb_axes)/float(ro)))
+   return ro, co
 
    
-def moy_pond(moys,ponds):
+def moy_pond(moys,ponds=None):
+   """
+   moy_pond(moys,ponds) computes the average of moys, with th eponderation ponds
+
+   Parameters
+   ----------
+   moys : array
+      Array of numbers to average
+   ponds : array (Optionnal)
+      Array of coefficents on the numbers to average
+      If not given, assumed to be 1 for everything
+   
+   Returns
+   -------
+   m : number
+      Average
+   
+   Tests
+   -----
+   >>> moy_pond([1., 2., 3.])
+   2.0
+   >>> moy_pond([1., 2., 3.], [1., 1., 2.])
+   2.25
+
+   """
+   if ponds == None:
+      ponds = [1. for i in moys]
    tot = sum(ponds)
    moy = 0.
    for y, p in zip(moys, ponds):
       moy += y*p/tot
    return moy
 
-class Courbe (object):
-   def __init__(self, titre, var_x, var_y, couleur='b', formule_x=None, formule_y=None):
-      self.titre = titre
+   
+class LineBase (object):
+   def __init__(self, title, var_x, var_y, var_z=None, formula_x=None, formula_y=None, formula_z=None):
+      self.title = title
+      self.var_x = var_x
+      self.var_y = var_y
+      self.var_z = var_z
+      self.plot_data = []
 
-      self.x = map(formule_x, var_x)
-      self.y = map(formule_y, var_y)
+      if formula_x <> None:
+         self.formula_x = formula_x
+      else:
+         self.formula_x = identity
 
-      self.couleur = couleur
-      if formule_x <> None:
-         self.formule_x = formule_x
+      if formula_y <> None:
+         self.formula_y = formula_y
       else:
-         self.formule_x = id
-      if formule_y <> None:
-         self.formule_y = formule_y
+         self.formula_y = identity
+
+      if formula_z <> None:
+         self.formula_z = formula_z
       else:
-         self.formule_y = id
+         self.formula_z = identity
+      
+      self.type= 'undef'
+      
+   def update(self):
+      self.var_x.update()
+      self.var_y.update()
+      if self.var_z <> None:
+         self.var_z.update()
+      
+      x_d, y_d = self.plot_data[-1].get_data()
+      new_x = list(self.var_x)
+      new_y = list(self.var_y)
+      if len(x_d) <> len(new_x) or len(y_d) <> len(new_y):
+         self.plot_data[-1].set_xdata(new_x)
+         self.plot_data[-1].set_ydata(new_y)
+         res = True
+      else:
+         res = False
+      
+      return res
+      
+   
+class Line (LineBase):
+   """
+   Line is the class which describes a plottable 2D line.
+   """
+   def __init__(self, title, var_x, var_y, color='b', formula_x=None, formula_y=None):
+      """
+      Instanciates a plottable Line.
+      
+      Parameters
+      ----------
+      title : string
+         Title of the line
+      var_x : 
+         An iterable object containing the x data
+      var_y : 
+         An iterable object containing the y data
+      color : 
+         The color of the line. Is the same than in matplotlib, e.g. b, r, c, m, k, y, g. Default is blue ('b')
+      formula_x : 
+         The function applied to all the elements of the x data. Default is identity (no modification)
+      formula_y : 
+         The function applied to all the elements of the y data. Default is identity (no modification)
+         
+      Tests
+      -----
+      >>> l = Line('Temperature', [0., 1., 2.], [200., 210., 205.], color='b')
+      
+      """
+      LineBase.__init__(self, title, var_x, var_y, None, formula_x, formula_y, None)
+      self.color = color
+      self.type= 'line2d'
 
    def get_min(self):
-      min_x = min(filter(lambda x:x>-999,self.x))
-      min_y = min(filter(lambda x:x>-999,self.y))
-      return min_x, min_y
+      """
+      Returns the tuple (x_min, y_min) where x_min is the minimum value of the x data,
+      taking the function formula_x into account. (The same for y_min)
+      
+      Returns
+      -------
+      (x_min, y_min) : tuple of number
+         Tuple containing the minimum value of x-data and the minimum value of y-data
+      
+      Tests
+      -----
+      >>> l = Line('Temperature', [0., 1., 2.], [200., 210., 205.], color='b')
+      >>> l.get_min()
+      (0.0, 200.0)
+      
+      """
+      x_d = filter(lambda x:x>-999,list(self.var_x))
+      if len(x_d) == 0:
+         return 0., 0.
+      min_x = min(x_d)
+      min_y = min(filter(lambda x:x>-999,list(self.var_y)))
+      return self.formula_x(min_x), self.formula_y(min_y)
 
    def get_max(self):
-      max_x = max(filter(lambda x:x>-999,self.x))
-      max_y = max(filter(lambda x:x>-999,self.y))
-      return max_x, max_y
+      """
+      Returns the tuple (x_max, y_max) where x_max is the maximum value of the x data,
+      taking the function formula_x into account. (The same for y_max)
+      
+      Returns
+      -------
+      (x_max, y_max) : tuple of number
+         Tuple containing the maximum value of x-data and the maximum value of y-data
+      
+      Tests
+      -----
+      >>> l = Line('Temperature', [0., 1., 2.], [200., 210., 205.], color='b')
+      >>> l.get_max()
+      (2.0, 210.0)
+      
+      """
+      x_d = filter(lambda x:x>-999,list(self.var_x))
+      if len(x_d) == 0:
+         return 0., 0.
+      max_x = max(x_d)
+      max_y = max(filter(lambda x:x>-999,list(self.var_y)))
+      return self.formula_x(max_x), self.formula_y(max_y)
 
-   def trace(self, axe, transf=None):
+   def render(self, axe, transf=None):
+      """
+      Main method of the Line class to render the Line on an Axe.
+      Should not be called by the user. It is called automatically by the Axe class.
+      
+      Parameters
+      ----------
+      axe : matplotlib.axes.Axes
+         The matplotlib axe we will plot the line on.
+      transf : function
+         A function which takes 2 iterable arguments, and returns a tuple of 2 lists
+         This function (which is ignored by default) is a 2D distortion of the line, and is very much used by the Map class
+         to make the line compliant with the projection used.
+      
+      """
       tab_x = []
       tab_y = []
-      for x, y in zip(self.x, self.y):
+      self.plot_data = []
+      for x, y in zip(self.var_x, self.var_y):
          if y < -999:
             if transf <> None:
                tab_x, tab_y = transf(tab_x, tab_y)
-            axe.plot(tab_x, tab_y, self.couleur, linewidth=1., label=self.titre)
+            self.plot_data.extend(axe.plot(tab_x, tab_y, self.color, linewidth=1., label=self.title))
             tab_x = []
             tab_y = []
          else:
-            tab_x.append(x)
-            tab_y.append(y)
-      if tab_x <> []:
+            tab_x.append(self.formula_x(x))
+            tab_y.append(self.formula_y(y))
+      if tab_x <> [] or self.plot_data == []:
          if transf <> None:
             tab_x, tab_y = transf(tab_x, tab_y)
-         axe.plot(tab_x, tab_y, self.couleur, linewidth=1., label=self.titre)
+         self.plot_data.extend(axe.plot(tab_x, tab_y, self.color, linewidth=1., label=self.title))
          
-   def moyenne(self, meth='trap', fct=id):
+   def average(self, meth='trap', fct=identity):
       """
-      Calcul de la moyenne de la courbe.
+      Computes the average value of the line, assuming it represents a continuous function.
+      It is based on an numerical integration method, assuming the x-data is sorted.
+      An optionnal function can be applied to the y-data to compute for example the average of the squared y-values.
       
-      Le calcul est fait en intégrant la courbe, puis en divisant par la largeur de l'axe x.
-      Une hypothese de calcul est que les valeurs de l'axe X sont croissantes. Si ce n'est pas le cas, la methode retourne -9999999
+      Parameters
+      ----------
+      meth : string (Optionnal)
+         Name of the integration method. Is 'trap' by default, and can be:
+         - 'trap'  : integration with trapezes
+         - 'left'  : integration with rectangles whose height is the left value of the line
+         - 'right' : integration with rectangles whose height is the right value of the line
+      fct : function (Optionnal)
+         Function applied to the y-values before averaging
+         
+      Returns
+      -------
+      m : number
+         Average of the line
+         
+      Tests
+      -----
+      >>> l = Line('Temperature', [0., 1., 3.], [200., 210., 205.], color='b')
+      >>> l.average()
+      206.66666666666666
       
-      L'argument meth designe la methode d(integration, et peut valoir :
-      - 'trap' : integration par trapezes
-      - 'gauche' : integration par rectangles de hauteur la valeur a gauche
-      - 'droite' : integration par rectangles de hauteur la valeur a droite
       """
       tab_x = []
       tab_y = []
@@ -94,122 +272,143 @@ class Courbe (object):
       
       val_conv_data = -999.
       
-      fin = len(tab_x)-1
-      
-      for x, y in zip(self.x, self.y):
+      for x, y in zip(self.x, self.y)+[(val_conv_data*2,val_conv_data*2)]:
          if y < val_conv_data:
             # Traitement ici
             if [tab_x[i+1]-tab_x[i] for i in range(len(tab_x)-1) if tab_x[i+1]-tab_x[i] < 0.] <> []:
-               return -9999999
+               return val_conv_data
             integrale = 0.
-            for i in range(fin):
+            for i in range(len(tab_x)-1):
                if meth == 'trap':
                   integrale += (tab_y[i] + tab_y[i+1])/2.*(tab_x[i+1] - tab_x[i])
-               if meth == 'gauche':
+               if meth == 'left':
                   integrale += tab_y[i]*(tab_x[i+1] - tab_x[i])
-               if meth == 'droite':
+               if meth == 'right':
                   integrale += tab_y[i+1]*(tab_x[i+1] - tab_x[i])
-               if meth == 'simps':
-                  x1 = tab_x[i]
-                  x2 = tab_x[i+1]
-                  x3 = tab_x[i+2]
-                  y1 = tab_y[i]
-                  y2 = tab_y[i+1]
-                  y3 = tab_y[i+2]
-                  a = (-x1*(y2-y3)+x2*(y1-y3)-x3*(y1-y2))/((x1-x3)*(x1-x2)*(x2-x3))
-                  b = (x1**2*(y2-y3)-x2**2*(y1-y3)+x3**2*(y1-y2))/((x1-x3)*(x1-x2)*(x2-x3))
-                  c = (x1**2*(x2*y3-x3*y2)-x1*(x2**2*y3-x3**2*y2)+x2*(x2-x3)*x3*y1)/((x1-x3)*(x1-x2)*(x2-x3))
-                  integrale += a*(x2**3/3-x1**3/3) + b*(x2**2/2-x1**2/2) + c*(x2-x1)
-            moys.append(integrale)
-            ponds.append(max(tab_x) - min(tab_x))
+            delta = max(tab_x) - min(tab_x)
+            moys.append(integrale/delta)
+            ponds.append(delta)
             tab_x = []
             tab_y = []
          else:
             tab_x.append(x)
             tab_y.append(fct(y))
-      if tab_x <> []:
-         if tab_x[-1] < val_conv_data:
-            tab_x = tab_x[:-1]
-         # Traitement ici
-         if [tab_x[i+1]-tab_x[i] for i in range(len(tab_x)-1) if tab_x[i+1]-tab_x[i] < 0.] <> []:
-            return -9999999
-         integrale = 0.
-         for i in range(fin):
-            if meth == 'trap':
-               integrale += (tab_y[i] + tab_y[i+1])/2.*(tab_x[i+1] - tab_x[i])
-            if meth == 'gauche':
-               integrale += tab_y[i]*(tab_x[i+1] - tab_x[i])
-            if meth == 'droite':
-               integrale += tab_y[i+1]*(tab_x[i+1] - tab_x[i])
-         moys.append(integrale)
-         ponds.append(max(tab_x) - min(tab_x))
-         
       return moy_pond(moys,ponds)
       
-   def variance(self, meth='trap'):
+   def std_dev(self, meth='trap'):
       """
-      Calcul de la variance de la courbe.
+      Computes the standard-deviation of the Line, assuming it represents a continuous function.
+      It is based on an numerical integration method, assuming the x-data is sorted.
       
-      Le calcul est fait en intégrant la courbe, puis en divisant par la largeur de l'axe x.
-      Une hypothese de calcul est que les valeurs de l'axe X sont croissantes. Si ce n'est pas le cas, la methode retourne -9999999
+      Parameters
+      ----------
+      meth : string (Optionnal)
+         Name of the integration method. Is 'trap' by default, and can be:
+         - 'trap'  : integration with trapezes
+         - 'left'  : integration with rectangles whose height is the left value of the line
+         - 'right' : integration with rectangles whose height is the right value of the line
+         
+      Returns
+      -------
+      sd : number
+         Standard-deviation of the line
+         
+      Tests
+      -----
+      >>> l = Line('Temperature', [0., 1., 3.], [200., 210., 205.], color='b')
+      >>> l.std_dev()
+      13.888888888890506
       
-      L'argument meth designe la methode d(integration, et peut valoir :
-      - 'trap' : integration par trapezes
-      - 'gauche' : integration par rectangles de hauteur la valeur a gauche
-      - 'droite' : integration par rectangles de hauteur la valeur a droite
       """
       
-      return self.moyenne(meth, lambda x:x**2) - self.moyenne(meth)**2
+      return self.average(meth, lambda x:x**2) - self.average(meth)**2
+      
 
-
-class Courbe3D (object):
-   def __init__(self, titre, var_x, var_y, var_z, couleur='b', formule_x=None, formule_y=None, formule_z=None):
-      self.titre = titre
-
-      self.x = map(formule_x, var_x)
-      self.y = map(formule_y, var_y)
-      self.z = map(formule_z, var_z)
-
-      self.couleur = couleur
-      if formule_x <> None:
-         self.formule_x = formule_x
-      else:
-         self.formule_x = id
-
-      if formule_y <> None:
-         self.formule_y = formule_y
-      else:
-         self.formule_y = id
-
-      if formule_z <> None:
-         self.formule_z = formule_z
-      else:
-         self.formule_z = id
+class Line3D (object):
+   """
+   Line3D is the class which describes a plottable 3D line.
+   """
+   def __init__(self, title, var_x, var_y, var_z, color='b', formula_x=None, formula_y=None, formula_z=None):
+      """
+      Instanciates a plottable Line.
+      
+      Parameters
+      ----------
+      title : string
+         Title of the line
+      var_x : 
+         An iterable object containing the x data
+      var_y : 
+         An iterable object containing the y data
+      var_z : 
+         An iterable object containing the z data
+      color : 
+         The color of the line. Is the same than in matplotlib, e.g. b, r, c, m, k, y, g. Default is blue ('b')
+      formula_x : 
+         The function applied to all the elements of the x data. Default is identity (no modification)
+      formula_y : 
+         The function applied to all the elements of the y data. Default is identity (no modification)
+      formula_z : 
+         The function applied to all the elements of the z data. Default is identity (no modification)
+      
+      """
+      LineBase.__init__(self, title, var_x, var_y, var_z, formula_x, formula_y, formula_z)
+      self.color = color
+      self.type= 'line3d'
 
    def get_min(self):
+      """
+      Returns the tuple (x_min, y_min, z_min) where x_min is the minimum value of the x data,
+      taking the function formula_x into account. (The same for y_min and z_min)
+      
+      Returns
+      -------
+      (x_min, y_min, z_min) : tuple of number
+         Tuple containing the minimum value of x-data, y-data and z-data
+      
+      """
       min_x = min(filter(lambda x:x>-9999999,self.x))
       min_y = min(filter(lambda x:x>-9999999,self.y))
       min_z = min(filter(lambda x:x>-9999999,self.z))
       return min_x, min_y, min_z
 
    def get_max(self):
+      """
+      Returns the tuple (x_max, y_max, z_max) where x_max is the maximum value of the x data,
+      taking the function formula_x into account. (The same for y_max and z_max)
+      
+      Returns
+      -------
+      (x_max, y_max, z_max) : tuple of number
+         Tuple containing the maximum value of x-data, y-data and z-data
+      
+      """
       max_x = max(filter(lambda x:x>-9999999,self.x))
       max_y = max(filter(lambda x:x>-9999999,self.y))
       max_z = max(filter(lambda x:x>-9999999,self.z))
       return max_x, max_y, max_z
 
-   def trace(self, axe, transf=None):
+   def render(self, axe):
+      """
+      Main method of the Line3D class to render the Line3D on an Axe.
+      Should not be called by the user. It is called automatically by the Axe class.
+      
+      Parameters
+      ----------
+      axe : matplotlib.axes.Axes
+         The matplotlib axe we will plot the line on.
+      
+      """
       tab_x = []
       tab_y = []
       tab_z = []
+      self.plot_data = []
       for x, y, z in zip(self.x, self.y, self.z):
          if y < -9999999:
-            if transf <> None:
-               tab_x, tab_y, tab_z = transf(tab_x, tab_y, tab_z)
             print tab_x
             print tab_y
             print tab_z
-            axe.plot(tab_x, tab_y, tab_z, self.couleur, linewidth=1., label=self.titre)
+            self.plot_data.extend(axe.plot(tab_x, tab_y, tab_z, self.color, linewidth=1., label=self.title))
             tab_x = []
             tab_y = []
             tab_z = []
@@ -218,41 +417,139 @@ class Courbe3D (object):
             tab_y.append(y)
             tab_z.append(z)
       if tab_x <> []:
-         if transf <> None:
-            tab_x, tab_y, tab_z = transf(tab_x, tab_y, tab_z)
-         axe.plot(tab_x, tab_y, tab_z, self.couleur, linewidth=1., label=self.titre)
+         self.plot_data.extend(axe.plot(tab_x, tab_y, tab_z, self.color, linewidth=1., label=self.title))
+         
+   def update(self):
+      pass
 
 
-class RepereBase (object):
-   def __init__(self, titre):
-      self.titre = titre
-      self.courbes = []
+class AxeBase (object):
+   """
+   A abstract base class for an Axe containing Line instances
+   """
+   def __init__(self, title):
+      """
+      Initialization of an Axe with its title
+
+      Parameters
+      ----------
+      title : string
+         Title of the Repere
+
+      Tests
+      -----
+      >>> rep = AxeBase('Temperature')
+
+      """
+      self.title = title
+      self.lines = []
       self.projection = 'rectilinear'
 
-   def ajCourbe(self, courbe):
-      self.courbes.append(courbe)
+   def addLine(self, line):
+      """
+      Method wich registers a Line for rendering
+
+      Parameters
+      ----------
+      line : Courbe or Courbe3D
+         Line to plot
+
+      Tests
+      -----
+      >>> line = Line('Sample Line', [0.], [0.])
+      >>> axe = AxeBase('Sample Axe')
+      >>> axe.addLine(line)
+
+      """
+      self.lines.append(line)
       
-   def creerAxe(self, li,co,num_axe, fig, **kwargs):
+   def createAxe(self, fig, li,co,num_axe, **kwargs):
+      """
+      Method wich creates a matplotlib.axes.Axes instance to plot on.
+
+      Parameters
+      ----------
+      fig : matplotlib.figure.Figure
+         Figure the axe will belong to
+      li : integer
+         Number of rows on the figure
+      co : integer
+         Number of columns on the figure
+      num_axe : integer
+         Number of the axe. Number 1 will be in the upper left corner, number 2 will be at its right, etc
+      **kwargs : Dictionnary
+         Arguments passed to create the matplotlib.figure.Figure instance.
+         It is documented in help(matplotlib.figure.Figure.add_subplot)
+
+      Tests
+      -----
+      
+      """
       self.axe = fig.add_subplot(li,co,num_axe, **kwargs)
-      self.axe
       
-   def trace(self, li,co,num_axe, fig):
-      self.creerAxe(li,co,num_axe, fig, projection=self.projection)
+   def render(self, fig, li,co,num_axe):
+      """
+      Main method of the AxeBase class to render the AxeBase on Board.
+      Should not be called by the user. It is called automatically by the Board class.
+      
+      Parameters
+      ----------
+      fig : matplotlib.figure.Figure
+         The matplotlib figure we will plot the axe on.
+      li : integer
+         Number of rows on the figure
+      co : integer
+         Number of columns on the figure
+      num_axe : integer
+         Number of the axe. Number 1 will be in the upper left corner, number 2 will be at its right, etc
+      
+      Tests
+      -----
+      
+      """
+      self.createAxe(fig, li,co,num_axe, projection=self.projection)
 
-      for cb in self.courbes:
-         cb.trace(self.axe)
-         self.axe.set_title(self.titre)
+      for cb in self.lines:
+         cb.render(self.axe)
+         self.axe.set_title(self.title)
          self.axe.grid('on')
+         
+   def update(self):
+      x_min = 1.0
+      x_max = 0.
+      y_min = 1.0
+      y_max = 0.
+      res = False
+      for cb in self.lines:
+         cb_up = cb.update()
+         res = res or cb_up
+         if cb.type == 'line2d' and cb_up:
+            x_min_cb, y_min_cb = cb.get_min()
+            x_max_cb, y_max_cb = cb.get_max()
+            x_min=min(x_min,x_min_cb)
+            y_min=min(y_min,y_min_cb)
+            x_max=max(x_max,x_max_cb)
+            y_max=max(y_max,y_max_cb)
+      if res:
+         self.axe.set_xbound(x_min,x_max)
+         self.axe.set_ybound(y_min,y_max)
+      return res
       
-      
-class Repere (RepereBase):
-   def __init__(self, titre):
-      RepereBase.__init__(self, titre)
+
+class Axe (AxeBase):
+   """
+   A concrete base class for an Axe containing Line instances
+   """
+   def __init__(self, title):
+      AxeBase.__init__(self, title)
 
 
-class Repere3D (RepereBase):
-   def __init__(self, titre):
-      RepereBase.__init__(self, titre)
+class Axe3D (AxeBase):
+   """
+   A concrete base class for an Axe containing Line3D instances
+   """
+   def __init__(self, title):
+      AxeBase.__init__(self, title)
       self.projection = '3d'
 
 
@@ -296,22 +593,58 @@ class Repere3D (RepereBase):
 # robin            Robinson
 
 # ==============   ====================================================
-class Carte (RepereBase):
-   def __init__(self, titre, auto, **kwargs):
-      RepereBase.__init__(self, titre)
+class Map (AxeBase):
+   """
+   Specialized Axe which allows to plot on a map.
+   """
+   def __init__(self, title, auto, **kwargs):
+      """
+      Initializer of the Map class.
+      
+      Parameters
+      ----------
+      title : string
+         The title of the map
+      auto : boolean
+         True if you want the map to adjust automatically to the line plotted on it.
+         False if you want to specify t manually in the **kwargs argument
+      **kwargs : dictionnary
+         Optionnal arguments passed to mpl_toolkits.basemap.Basemap
+      
+      """
+      AxeBase.__init__(self, title)
       self.args = kwargs
       self.auto = auto
 
-   def trace(self, li,co,num_axe, fig):
+   def render(self, fig, li,co,num_axe):
+      """
+      Main method of the Map class to render the Map on Board.
+      Should not be called by the user. It is called automatically by the Board class.
+      
+      Parameters
+      ----------
+      fig : matplotlib.figure.Figure
+         The matplotlib figure we will plot the axe on.
+      li : integer
+         Number of rows on the figure
+      co : integer
+         Number of columns on the figure
+      num_axe : integer
+         Number of the axe. Number 1 will be in the upper left corner, number 2 will be at its right, etc
+      
+      Tests
+      -----
+      
+      """
 
-      self.creerAxe(li,co,num_axe, fig)
+      self.createAxe(fig, li,co,num_axe)
 
       if self.auto:
          lat_min = 360.
          lat_max = -360.
          lon_min = 360
          lon_max = -360.
-         for cb in self.courbes:
+         for cb in self.lines:
             lon_min_cb, lat_min_cb = cb.get_min()
             lon_max_cb, lat_max_cb = cb.get_max()
 
@@ -346,14 +679,28 @@ class Carte (RepereBase):
       carte.drawmeridians(np.arange(-180, 180, 10),labels=[0,0,0,1])
       carte.drawparallels(np.arange(-90, 90, 10),labels=[1,0,0,0])
 
-      for cb in self.courbes:
-         cb.trace(carte, carte)
-         self.axe.set_title(self.titre)
+      for cb in self.lines:
+         cb.render(carte, carte)
+         self.axe.set_title(self.title)
          # self.axe.grid('on')
 
 
-class Planche (wx.Panel):
+class Board (wx.Panel):
+   """
+   Class derived from wx.Panel and which is embedded in the application
+   """
    def __init__(self, *args, **kwd):
+      """
+      Initializer of the Board class.
+      
+      Parameters
+      ----------
+      *args : optionnal arguments
+         Optionnal arguments passed to wx.Panel
+      **kwargs : dictionnary
+         Optionnal arguments passed to wx.Panel
+      
+      """
       wx.Panel.__init__(self, *args, **kwd)
 
       self.fig = Figure((19,12), 75)
@@ -390,13 +737,31 @@ class Planche (wx.Panel):
       self.SetSizer(sizer)
       self.Fit()
 
-      self.reperes = []
+      self.axes = []
 
    def on_move(self, event):
+      """
+      Callback triggered when the mouse moves
+      
+      Parameters
+      ----------
+      event : matplotlib.backend_bases.Event
+         Event which triggered the callback
+      
+      """
       if event.ydata <> None:
          self.mouse_pos_label.SetLabel('x='+str(event.xdata)+', y='+str(event.ydata))
       
    def on_mouse_release(self, event):
+      """
+      Callback triggered when a mouse button is released
+      
+      Parameters
+      ----------
+      event : matplotlib.backend_bases.Event
+         Event which triggered the callback
+      
+      """
       print event.button
    
    def GetToolBar(self):
@@ -408,21 +773,48 @@ class Planche (wx.Panel):
       # this is supposed to prevent redraw flicker on some X servers...
       pass
 
-   def ajRepere(self, repere):
-      self.reperes.append(repere)
+   def addAxe(self, axe):
+      """
+      Adds an Axe to the list of axes to render when rendering the Board
+      
+      Parameters
+      ----------
+      axe : AxeBase
+         A class instance derving from AxeBase
+      
+      """
+      self.axes.append(axe)
 
-   def trace(self):
-      li, co = calc_repart_auto(len(self.reperes))
+   def render(self):
+      """
+      Main method of the Board class to render.
+      Should not be called by the user. It is called automatically by the Window class.
+      
+      """
+      li, co = auto_layout(len(self.axes))
       num_axe = 0
-      for rep in self.reperes:
+      for axe in self.axes:
          num_axe += 1
-         rep.trace(li,co,num_axe, self.fig)
+         axe.render(self.fig, li,co,num_axe)
       # self.fig.subplots_adjust(bottom=0.05, left=0.05, right=0.95, top=0.95, wspace=0, hspace=0)
       return self.fig
+   
+   def update(self):
+      res = False
+      for axe in self.axes:
+         res = res or axe.update()
+      self.canvas.draw()
+      return res
+      
 
+def test():
+   import doctest
 
+   doctest.testmod()
+   
 
-
+if __name__ == '__main__':
+    test()
 
 
 
