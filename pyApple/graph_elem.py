@@ -30,8 +30,8 @@ import wx
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg
 from matplotlib.backends.backend_wx import NavigationToolbar2Wx
 
-from aplCommon import *
-from base_reader import *
+from pyApple.aplCommon import *
+from pyApple.base_reader import *
 
 
 def auto_layout(nb_axes):

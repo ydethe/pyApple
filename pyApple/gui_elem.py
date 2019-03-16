@@ -17,7 +17,7 @@
 
 import wx
 
-from graph_elem import *
+from pyApple.graph_elem import *
 import time
 
 

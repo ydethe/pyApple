@@ -22,9 +22,9 @@ import sys
 
 import platform
 
-from simple_reader import *
+from pyApple.simple_reader import *
 
-from gui_elem import *
+from pyApple.gui_elem import *
 
 
 class TestSimple (unittest.TestCase):

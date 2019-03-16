@@ -20,7 +20,7 @@ import sys
 import os
 from math import *
 
-from aplCommon import *
+from pyApple.aplCommon import *
 
 
 class Datagram (list):

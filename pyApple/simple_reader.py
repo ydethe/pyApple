@@ -15,7 +15,7 @@
 #     You should have received a copy of the Lesser GNU General Public License
 #     along with pyApple.  If not, see <http://www.gnu.org/licenses/>.
 
-from base_reader import *
+from pyApple.base_reader import *
 
 
 class Simple_Reader (ReaderBase):
