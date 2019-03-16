@@ -1,17 +1,17 @@
 # -*- coding: latin-1 -*-
 
 #     This file is part of pyApple.
-# 
+#
 #     pyApple is free software: you can redistribute it and/or modify
 #     it under the terms of the Lesser GNU General Public License as published by
 #     the Free Software Foundation, either version 3 of the License, or
 #     (at your option) any later version.
-# 
+#
 #     pyApple is distributed in the hope that it will be useful,
 #     but WITHOUT ANY WARRANTY; without even the implied warranty of
 #     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #     Lesser GNU General Public License for more details.
-# 
+#
 #     You should have received a copy of the Lesser GNU General Public License
 #     along with pyApple.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -26,10 +26,10 @@ from aplCommon import *
 class Datagram (list):
    def __init__(self, elem=[]):
       list.__init__(self,elem)
-      
+
    def update(self):
       pass
-      
+
    def __add__(self, data):
       return [x+y for x,y in zip(self.val,data)]
 
@@ -76,7 +76,7 @@ class ReaderBase (object):
          self.data['x'] = []
          self.data['y'] = []
          line = file.readline()            # We read the first line to initiate the main loop
-         while line <> '':
+         while line != '':
             vars = line.strip().split(',') # The strip method removes initial spaces, and final spaces and \n
             vars = map(float, vars)        # We convert everything into float
             self.data['x'].append(vars[0]) # We append the float to the data member of the class
@@ -205,7 +205,7 @@ def test():
          self.data['x'] = Datagram()
          self.data['y'] = Datagram()
          line = file.readline()            # We read the first line to initiate the main loop
-         while line <> '':
+         while line != '':
             vars = line.strip().split(',') # The strip method removes initial spaces, and final spaces and \n
             vars = map(float, vars)        # We convert everything into float
             self.data['x'].append(vars[0]) # We append the float to the data member of the class
@@ -225,5 +225,3 @@ def test():
 
 if __name__ == '__main__':
     test()
-
-
