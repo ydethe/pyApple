@@ -29,9 +29,9 @@ from pyApple.gui_elem import *
 
 class TestSimple (unittest.TestCase):
     def test(self):
-        d = Simple_Reader('data.txt')
+        d = Simple_Reader('pyApple/tests/data.txt')
 
-        carte = Map("Trace au sol", True, projection='merc')
+        carte = Map("Trace au sol")
         tr_sol = Line("Trace au sol", d['lon'], d['lat'], color='b')
         carte.addLine(tr_sol)
 
@@ -39,12 +39,16 @@ class TestSimple (unittest.TestCase):
         alt = Line(u"Altitude", d['t'], d['alt'], color='b')
         rep.addLine(alt)
 
+        app = QApplication(sys.argv)
+
         fen = AppleWindow()
         pl = fen.createBoard(u"Satellite")
-        pl.addAxe(rep)
+        # pl.addAxe(rep)
         pl.addAxe(carte)
+        fen.render()
 
-        fen.display()
+        app.exec_()
+        # sys.exit(app.exec_())
 
 
 if __name__ == '__main__':

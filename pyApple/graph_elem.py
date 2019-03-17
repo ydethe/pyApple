@@ -19,16 +19,18 @@ from math import *
 import numpy as np
 
 import matplotlib
-matplotlib.use('WXAgg')
-from mpl_toolkits.basemap import Basemap
+matplotlib.use('QT5Agg')
+import cartopy.crs as ccrs
 from mpl_toolkits.mplot3d import Axes3D
+
+from PyQt5 import QtCore, QtWidgets
+from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QWidget, QAction, QTabWidget,QVBoxLayout
 
 from matplotlib.figure import Figure
 
-import wx
-
-from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg
-from matplotlib.backends.backend_wx import NavigationToolbar2Wx
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from PyQt5.QtWidgets import QWidget
 
 from pyApple.aplCommon import *
 from pyApple.base_reader import *
@@ -439,7 +441,7 @@ class AxeBase (object):
    """
    A abstract base class for an Axe containing Line instances
    """
-   def __init__(self, title):
+   def __init__(self, title, **kwargs):
       """
       Initialization of an Axe with its title
 
@@ -455,7 +457,7 @@ class AxeBase (object):
       """
       self.title = title
       self.lines = []
-      self.projection = 'rectilinear'
+      self.kwargs = kwargs
 
    def addLine(self, line):
       """
@@ -519,7 +521,7 @@ class AxeBase (object):
       -----
 
       """
-      self.createAxe(fig, li,co,num_axe, projection=self.projection)
+      self.createAxe(fig, li,co,num_axe, **self.kwargs)
 
       for cb in self.lines:
          cb.render(self.axe)
@@ -561,55 +563,14 @@ class Axe3D (AxeBase):
    A concrete base class for an Axe containing Line3D instances
    """
    def __init__(self, title):
-      AxeBase.__init__(self, title)
-      self.projection = '3d'
+      AxeBase.__init__(self, title, projection = '3d')
 
 
-# Options : llcrnrlon=None, llcrnrlat=None, urcrnrlon=None, urcrnrlat=None, llcrnrx=None, llcrnry=None, urcrnrx=None, urcrnry=None, width=None, height=None, projection='cyl', resolution='c', area_thresh=None, rsphere=6370997.0, lat_ts=None, lat_1=None, lat_2=None, lat_0=None, lon_0=None, lon_1=None, lon_2=None, no_rot=False, suppress_ticks=True, satellite_height=35786000, boundinglat=None, fix_aspect=True, anchor='C', celestial=False, ax=None)
-
-# The desired projection is set with the proj keyword. Default is ``cyl``.
-# Supported values for the projection keyword are:
-
-# ==============   ====================================================
-# Value            Description
-# ==============   ====================================================
-# aeqd             Azimuthal Equidistant
-# poly             Polyconic
-# gnom             Gnomonic
-# moll             Mollweide
-# tmerc            Transverse Mercator
-# nplaea           North-Polar Lambert Azimuthal
-# gall             Gall Stereographic Cylindrical
-# mill             Miller Cylindrical
-# merc             Mercator
-# stere            Stereographic
-# npstere          North-Polar Stereographic
-# hammer           Hammer
-# geos             Geostationary
-# nsper            Near-Sided Perspective
-# vandg            van der Grinten
-# laea             Lambert Azimuthal Equal Area
-# mbtfpq           McBryde-Thomas Flat-Polar Quartic
-# sinu             Sinusoidal
-# spstere          South-Polar Stereographic
-# lcc              Lambert Conformal
-# npaeqd           North-Polar Azimuthal Equidistant
-# eqdc             Equidistant Conic
-# cyl              Cylindrical Equidistant
-# omerc            Oblique Mercator
-# aea              Albers Equal Area
-# spaeqd           South-Polar Azimuthal Equidistant
-# ortho            Orthographic
-# cass             Cassini-Soldner
-# splaea           South-Polar Lambert Azimuthal
-# robin            Robinson
-
-# ==============   ====================================================
 class Map (AxeBase):
    """
    Specialized Axe which allows to plot on a map.
    """
-   def __init__(self, title, auto, **kwargs):
+   def __init__(self, title, **kwargs):
       """
       Initializer of the Map class.
 
@@ -617,16 +578,13 @@ class Map (AxeBase):
       ----------
       title : string
          The title of the map
-      auto : boolean
-         True if you want the map to adjust automatically to the line plotted on it.
-         False if you want to specify t manually in the **kwargs argument
       **kwargs : dictionnary
          Optionnal arguments passed to mpl_toolkits.basemap.Basemap
 
       """
-      AxeBase.__init__(self, title)
-      self.args = kwargs
-      self.auto = auto
+      self.proj = ccrs.Mercator(central_longitude=0.0, min_latitude=-80.0, max_latitude=84.0)
+      kwargs['projection'] = self.proj
+      AxeBase.__init__(self, title, **kwargs)
 
    def render(self, fig, li,co,num_axe):
       """
@@ -648,175 +606,48 @@ class Map (AxeBase):
       -----
 
       """
-
-      self.createAxe(fig, li,co,num_axe)
-
-      if self.auto:
-         lat_min = 360.
-         lat_max = -360.
-         lon_min = 360
-         lon_max = -360.
-         for cb in self.lines:
-            lon_min_cb, lat_min_cb = cb.get_min()
-            lon_max_cb, lat_max_cb = cb.get_max()
-
-            lat_min = min(lat_min,lat_min_cb)
-            lat_max = max(lat_max,lat_max_cb)
-            lon_min = min(lon_min,lon_min_cb)
-            lon_max = max(lon_max,lon_max_cb)
-
-         rnd = 10.0
-         self.args['llcrnrlat'] = rnd*floor(lat_min/rnd)
-         self.args['urcrnrlat'] = rnd*ceil(lat_max/rnd)
-         self.args['llcrnrlon'] = rnd*floor(lon_min/rnd)
-         self.args['urcrnrlon'] = rnd*ceil(lon_max/rnd)
-         # self.args['width'] = (lon_max-lon_min)*pi/180.*6378137.*0.5
-         # self.args['height'] = (lat_max-lat_min)*pi/180.*6378137.*0.5
-         self.args['lon_0'] = -40
-         self.args['lat_1'] = 30
-
-      self.args['rsphere'] = (6378137., 6356752.3142)
-      self.args['ax'] = self.axe
-      carte = Basemap(**self.args)
-
-      # draw coastlines, country boundaries, fill continents.
-      carte.drawcoastlines()
-      carte.drawcountries()
-      carte.fillcontinents(color='coral')
-
-      # draw the edge of the map projection region (the projection limb)
-      carte.drawmapboundary()
-
-      # draw lat/lon grid lines every 10 degrees.
-      carte.drawmeridians(np.arange(-180, 180, 10),labels=[0,0,0,1])
-      carte.drawparallels(np.arange(-90, 90, 10),labels=[1,0,0,0])
-
-      for cb in self.lines:
-         cb.render(carte, carte)
-         self.axe.set_title(self.title)
-         # self.axe.grid('on')
+      AxeBase.render(self, fig, li,co,num_axe)
+      self.axe.coastlines(resolution='110m')
+      self.axe.gridlines()
 
 
-class Board (wx.Panel):
-   """
-   Class derived from wx.Panel and which is embedded in the application
-   """
-   def __init__(self, *args, **kwd):
-      """
-      Initializer of the Board class.
+class Board(FigureCanvas):
+    """Ultimately, this is a QWidget (as well as a FigureCanvasAgg, etc.)."""
 
-      Parameters
-      ----------
-      *args : optionnal arguments
-         Optionnal arguments passed to wx.Panel
-      **kwargs : dictionnary
-         Optionnal arguments passed to wx.Panel
+    def __init__(self, width=5, height=4, dpi=100):
+        self.fig = Figure(figsize=(width, height), dpi=dpi)
+        FigureCanvas.__init__(self, self.fig)
 
-      """
-      wx.Panel.__init__(self, *args, **kwd)
+        FigureCanvas.setSizePolicy(self,
+                                   QtWidgets.QSizePolicy.Expanding,
+                                   QtWidgets.QSizePolicy.Expanding)
+        FigureCanvas.updateGeometry(self)
 
-      self.fig = Figure((19,12), 75)
-      self.canvas = FigureCanvasWxAgg(self, -1, self.fig)
-      self.canvas.mpl_connect('motion_notify_event', self.on_move)
-      self.canvas.mpl_connect('button_release_event', self.on_mouse_release)
-      self.toolbar = NavigationToolbar2Wx(self.canvas)
-      self.toolbar.Realize()
+        self.axes = []
 
-      # On Windows, default frame size behaviour is incorrect
-      # you don't need this under Linux
-      tw, th = self.toolbar.GetSizeTuple()
-      fw, fh = self.canvas.GetSizeTuple()
-      self.toolbar.SetSize(wx.Size(fw, th))
+    def addAxe(self, axe):
+        self.axes.append(axe)
 
-      self.mouse_pos_label = wx.StaticText(self, -1, "")
+    def render(self):
+        """
+        Main method of the Board class to render.
+        Should not be called by the user. It is called automatically by the Window class.
 
-      # Create a figure manager to manage things
+        """
+        li, co = auto_layout(len(self.axes))
+        num_axe = 0
+        for axe in self.axes:
+           num_axe += 1
+           axe.render(self.fig, li,co,num_axe)
+        # self.fig.subplots_adjust(bottom=0.05, left=0.05, right=0.95, top=0.95, wspace=0, hspace=0)
+        return self.fig
 
-      # Now put all into a sizer
-      sizer = wx.BoxSizer(wx.VERTICAL)
-      sizer_nav = wx.FlexGridSizer(1, 3, 0, 0)
-
-      # This way of adding to sizer allows resizing
-      sizer.Add(self.canvas, 1, wx.LEFT|wx.TOP|wx.GROW)
-      sizer.Add(sizer_nav, 0, wx.GROW)
-
-      # Best to allow the toolbar to resize!
-      sizer_nav.Add(self.toolbar, 0, wx.ALL, 4)
-      sizer_nav.Add(wx.Panel(self,-1), 0, wx.ALL, 4)
-      sizer_nav.Add(self.mouse_pos_label, 0, wx.ALL, 4)
-      sizer_nav.Fit(self)
-      sizer_nav.AddGrowableCol(1)
-      self.SetSizer(sizer)
-      self.Fit()
-
-      self.axes = []
-
-   def on_move(self, event):
-      """
-      Callback triggered when the mouse moves
-
-      Parameters
-      ----------
-      event : matplotlib.backend_bases.Event
-         Event which triggered the callback
-
-      """
-      if event.ydata != None:
-         self.mouse_pos_label.SetLabel('x='+str(event.xdata)+', y='+str(event.ydata))
-
-   def on_mouse_release(self, event):
-      """
-      Callback triggered when a mouse button is released
-
-      Parameters
-      ----------
-      event : matplotlib.backend_bases.Event
-         Event which triggered the callback
-
-      """
-      print(event.button)
-
-   def GetToolBar(self):
-      # You will need to override GetToolBar if you are using an
-      # unmanaged toolbar in your frame
-      return self.toolbar
-
-   def onEraseBackground(self, evt):
-      # this is supposed to prevent redraw flicker on some X servers...
-      pass
-
-   def addAxe(self, axe):
-      """
-      Adds an Axe to the list of axes to render when rendering the Board
-
-      Parameters
-      ----------
-      axe : AxeBase
-         A class instance derving from AxeBase
-
-      """
-      self.axes.append(axe)
-
-   def render(self):
-      """
-      Main method of the Board class to render.
-      Should not be called by the user. It is called automatically by the Window class.
-
-      """
-      li, co = auto_layout(len(self.axes))
-      num_axe = 0
-      for axe in self.axes:
-         num_axe += 1
-         axe.render(self.fig, li,co,num_axe)
-      # self.fig.subplots_adjust(bottom=0.05, left=0.05, right=0.95, top=0.95, wspace=0, hspace=0)
-      return self.fig
-
-   def update(self):
-      res = False
-      for axe in self.axes:
-         res = res or axe.update()
-      self.canvas.draw()
-      return res
+    def update(self):
+        res = False
+        for axe in self.axes:
+           res = res or axe.update()
+        # self.draw()
+        return res
 
 
 def test():

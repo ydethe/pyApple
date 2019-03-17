@@ -45,10 +45,10 @@ class Simple_Reader (ReaderBase):
       self.data['pen'] = Datagram()
       self.data['azi'] = Datagram()
       while line != '':
-         dat = line.strip().split(' ')
-         while '' in dat:
-            dat.remove('')
-         dat = map(float,dat)
+         elem = line.strip().split(' ')
+         while '' in elem:
+            elem.remove('')
+         dat = [float(x) for x in elem]
          ind = 0
          self.data['t'].append(dat[ind]); ind += 1
          self.data['x'].append(dat[ind]); ind += 1
