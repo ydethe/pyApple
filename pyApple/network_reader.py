@@ -17,6 +17,8 @@
 
 from pyApple.base_reader import *
 from socket import *
+import socketserver
+import threading
 
 
 class NetDatagram (Datagram):
@@ -24,8 +26,8 @@ class NetDatagram (Datagram):
       list.__init__(self)
       self.reader = reader
 
-   def update(self):
-      self.reader.update()
+   # def update(self):
+   #    self.reader.update()
 
 
 class NetworkReader (ReaderBase):
@@ -68,3 +70,50 @@ class NetworkReader (ReaderBase):
 
          for k, v in zip(self.var, dat):
             self.data[k].append(v)
+
+
+class ServerRequestHandler (socketserver.BaseRequestHandler):
+    server = None
+    def handle(self):
+        data = str(self.request.recv(1024), 'ascii')
+        # cur_thread = threading.current_thread()
+        # response = bytes("{}: {}".format(cur_thread.name, data), 'ascii')
+        # self.request.sendall(response)
+        ServerRequestHandler.server.update(data)
+
+
+class ThreadedTCPServer(ReaderBase, socketserver.ThreadingMixIn, socketserver.TCPServer):
+    def __init__(self, *args, **kwargs):
+        ReaderBase.__init__(self)
+        socketserver.ThreadingMixIn.__init__(self)
+        socketserver.TCPServer.__init__(self, *args, **kwargs)
+
+        self.var = ['t', 'ax', 'ay', 'az']
+        for var in self.var:
+           self.data[var] = NetDatagram(self)
+
+    def update(self, data):
+        lines = data.strip().split('\n')
+        for line in lines:
+            elem = line.strip().split(',')
+            dat = [float(x) for x in elem]
+            print(dat)
+
+            for k, v in zip(self.var, dat):
+                self.data[k].append(v)
+
+
+def start(host, port):
+    server = ThreadedTCPServer((host, port), ServerRequestHandler)
+    ServerRequestHandler.server = server
+    ip, port = server.server_address
+
+    # Start a thread with the server -- that thread will then start one
+    # more thread for each request
+    server_thread = threading.Thread(target=server.serve_forever)
+    # Exit the server thread when the main thread terminates
+    server_thread.daemon = True
+    server_thread.start()
+    print("Server loop running at %s:%s" % (ip, port))
+
+    return server

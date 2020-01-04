@@ -17,38 +17,35 @@
 import unittest
 import sys
 
+import qt5reactor
+qt5reactor.install()
+
 # Put the path where pyApple is located here
 #sys.path.append('~/pyApple')
 
 import platform
 
-from pyApple.simple_reader import *
+from pyApple.network_reader import start
 
 from pyApple.gui_elem import *
 
 
-class TestSimple (unittest.TestCase):
+class TestNetwork (unittest.TestCase):
     def test(self):
-        d = Simple_Reader('pyApple/tests/data.txt')
+        d = start("localhost", 8008)
 
-        carte = Map("Trace au sol")
-        tr_sol = Line("Trace au sol", d['lon'], d['lat'], color='b')
-        carte.addLine(tr_sol)
-
-        rep = Axe("Altitude")
-        alt = Line(u"Altitude", d['t'], d['alt'], color='b')
+        rep = Axe("Acc. x")
+        alt = Line(u"Acc", d['t'], d['ax'], color='b')
         rep.addLine(alt)
 
         app = QApplication(sys.argv)
 
         fen = AppleWindow()
-        pl = fen.createBoard(u"Satellite")
+        pl = fen.createBoard(u"iPhone")
         pl.addAxe(rep)
-        # pl.addAxe(carte)
         fen.render()
 
         app.exec_()
-        # sys.exit(app.exec_())
 
 
 if __name__ == '__main__':

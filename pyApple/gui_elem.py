@@ -16,6 +16,7 @@
 #     along with pyApple.  If not, see <http://www.gnu.org/licenses/>.
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QWidget, QAction, QTabWidget,QVBoxLayout
@@ -66,7 +67,8 @@ class AppleWindow(QMainWindow):
         self.__boards = []
 
     def createBoard(self, titre):
-        pl = Board()
+        pl = Board(self)
+
         self.main_frame.tabs.addTab(pl, titre)
         self.__boards.append(pl)
         return pl

@@ -614,9 +614,10 @@ class Map (AxeBase):
 class Board(FigureCanvas):
     """Ultimately, this is a QWidget (as well as a FigureCanvasAgg, etc.)."""
 
-    def __init__(self, width=5, height=4, dpi=100):
+    def __init__(self, parent, width=5, height=4, dpi=100):
         self.fig = Figure(figsize=(width, height), dpi=dpi)
         FigureCanvas.__init__(self, self.fig)
+        self.parent = parent
 
         FigureCanvas.setSizePolicy(self,
                                    QtWidgets.QSizePolicy.Expanding,
@@ -624,7 +625,7 @@ class Board(FigureCanvas):
         FigureCanvas.updateGeometry(self)
 
         self.axes = []
-
+        
     def addAxe(self, axe):
         self.axes.append(axe)
 
