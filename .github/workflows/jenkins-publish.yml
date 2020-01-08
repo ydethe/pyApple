@@ -8,4 +8,4 @@ jobs:
     steps:
     - name: Trigger Jenkins checks
       run: |
-        curl http://admin:${{ secrets.jenkins_password }}@94.23.18.179:8080/job/github.ydethe.SystemControl/build\?token\=isolated-joyfully-borrowing
+        curl http://admin:${{ secrets.jenkins_password }}@94.23.18.179:8080/job/github.ydethe.pyApple/build\?token\=deport-diploma-fraternal

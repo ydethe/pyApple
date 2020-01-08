@@ -30,5 +30,4 @@ jobs:
         twine upload dist/*
     - name: Build doc and publish on readthedocs.org
       run: |
-          curl -d "" -X POST -H "Authorization: Token ${{ secrets.rtd_token}}" https://readthedocs.org/api/v3/projects/systemcontrol/versions/latest/builds/
-
+          curl -d "" -X POST -H "Authorization: Token ${{ secrets.rtd_token}}" https://readthedocs.org/api/v3/projects/pyapple/versions/latest/builds/
