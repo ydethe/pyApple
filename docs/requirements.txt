@@ -1,0 +1,9 @@
+sphinx
+sphinx_rtd_theme
+sphinx-autoapi
+sphinxcontrib-apidoc
+sphinxcontrib-napoleon
+matplotlib
+scipy
+numpy
+networkx
